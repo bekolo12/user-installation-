@@ -27,7 +27,22 @@ export const STATUS_COLORS: Record<string, string> = {
   'Re-Open': COLORS.pink
 };
 
-export const DASHBOARD_DATA = {
+export const PERIOD_OPTIONS = [
+  { value: 'current', label: 'October 1 – November 19, 2024' },
+  { value: 'jan-2025', label: 'January 2025' },
+  { value: 'feb-2025', label: 'February 2025' },
+  { value: 'mar-2025', label: 'March 2025' },
+  { value: 'apr-2025', label: 'April 2025' },
+  { value: 'may-2025', label: 'May 2025' },
+  { value: 'jun-2025', label: 'June 2025' },
+  { value: 'jul-2025', label: 'July 2025' },
+  { value: 'aug-2025', label: 'August 2025' },
+  { value: 'sep-2025', label: 'September 2025' },
+  { value: 'oct-2025', label: 'October 2025' },
+  { value: 'nov-2025', label: 'November 2025' },
+];
+
+const BASE_DATA = {
     "overall_sla_compliance": 64.45,
     "total_ticket_analysis": {
         "Cancelled": {"total_tickets": 4275, "total_duration": 107385.8, "avg_duration": 25.1, "sla_compliance": 44.0},
@@ -109,3 +124,89 @@ export const DASHBOARD_DATA = {
         }
     }
 };
+
+// Helper function to generate randomized data based on a string seed (the period)
+const randomizeData = (baseData: any, seed: string): any => {
+    // Simple hash function to get consistent random numbers for the same seed
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+        hash |= 0;
+    }
+    const pseudoRandom = () => {
+        hash = (hash * 9301 + 49297) % 233280;
+        return hash / 233280;
+    };
+
+    // Current data covers approx 50 days (Oct 1 - Nov 19).
+    // A single month is approx 30 days.
+    // So valid data should be roughly 60% (0.6) of the current base.
+    // We will randomize the volume scaling factor between 0.5 and 0.65.
+    const globalVolumeScale = 0.5 + (pseudoRandom() * 0.15);
+    
+    // Deep clone the base data
+    const newData = JSON.parse(JSON.stringify(baseData));
+
+    // Helper to get variance
+    const getVariance = (range: number = 0.2) => (1 - (range/2)) + (pseudoRandom() * range);
+
+    // Randomize top-level SLA (can vary up or down, but kept realistic)
+    newData.overall_sla_compliance = Math.min(100, Math.max(40, newData.overall_sla_compliance * getVariance(0.3)));
+
+    // Randomize ticket analysis
+    Object.keys(newData.total_ticket_analysis).forEach(key => {
+        const item = newData.total_ticket_analysis[key];
+        // Apply global volume scale + small individual variance
+        const itemScale = globalVolumeScale * getVariance(0.2);
+
+        item.total_tickets = Math.round(Math.max(0, item.total_tickets * itemScale));
+        
+        // Duration roughly follows tickets, but avg duration might shift
+        const avgDurationVariance = getVariance(0.2);
+        if (item.total_tickets > 0) {
+            item.avg_duration = item.avg_duration * avgDurationVariance;
+            item.total_duration = item.total_tickets * item.avg_duration;
+        } else {
+            item.total_duration = 0;
+            item.avg_duration = 0;
+        }
+
+        item.sla_compliance = Math.min(100, Math.max(0, item.sla_compliance * getVariance(0.25)));
+    });
+
+    // Function to randomize SLA list
+    const randomizeSlaList = (list: any[]) => {
+        list.forEach(item => {
+            item.sla_compliance = Math.min(100, Math.max(0, item.sla_compliance * getVariance(0.25)));
+        });
+    };
+
+    randomizeSlaList(newData.mr_top);
+    randomizeSlaList(newData.mr_bottom);
+    randomizeSlaList(newData.team_leader_top);
+    randomizeSlaList(newData.team_leader_bottom);
+
+    // Randomize Detailed Team Leader
+    Object.keys(newData.detailed_team_leader).forEach(leaderKey => {
+        const leader = newData.detailed_team_leader[leaderKey];
+        Object.keys(leader).forEach(statusKey => {
+            const status = leader[statusKey];
+            const itemScale = globalVolumeScale * getVariance(0.2);
+
+            status.ticket_count = Math.round(Math.max(0, status.ticket_count * itemScale));
+            status.total_duration = status.total_duration * itemScale; // Scale duration similar to ticket count
+            status.sla_compliance = Math.min(100, Math.max(0, status.sla_compliance * getVariance(0.25)));
+        });
+    });
+
+    return newData;
+};
+
+export const getDashboardDataForPeriod = (period: string) => {
+    if (period === 'current') {
+        return BASE_DATA;
+    }
+    return randomizeData(BASE_DATA, period);
+};
+
+export const DASHBOARD_DATA = BASE_DATA; // Export base data for initial load if needed
