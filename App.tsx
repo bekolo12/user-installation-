@@ -128,7 +128,10 @@ const App = () => {
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 animate-[fadeIn_0.6s_ease-out_forwards]">
             <div className="text-center md:text-left mb-4 md:mb-0">
                 <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">📊 SLA Performance Dashboard</h1>
-                <h2 className="text-xl md:text-2xl font-semibold text-blue-100 mb-2">User Installation Report</h2>
+                <h2 className="text-xl md:text-2xl font-semibold text-blue-100 mb-2">
+                  User Installation Report
+                  {selectedPeriod !== 'current' && <span className="text-yellow-300 ml-2">(Projected Values)</span>}
+                </h2>
                 <p className="text-blue-300 text-sm mt-1">Comprehensive Service Level Agreement Compliance Analysis</p>
             </div>
             
